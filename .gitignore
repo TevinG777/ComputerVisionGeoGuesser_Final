@@ -30,6 +30,9 @@ wheels/
 checkpoints/
 test_checkpoints/
 
+# Evaluation results
+evaluation_results/
+
 # Jupyter Notebook
 .ipynb_checkpoints
 *.ipynb
