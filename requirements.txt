@@ -1,0 +1,10 @@
+# For GPU support, install PyTorch with CUDA using the command below instead of this file:
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#
+# For CPU only (not recommended for training):
+# pip install torch torchvision
+
+# Other dependencies
+pillow>=10.0.0
+numpy<2.0.0
+matplotlib>=3.7.0
