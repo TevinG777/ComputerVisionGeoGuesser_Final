@@ -33,11 +33,11 @@ def load_trained_model(checkpoint_path, device):
 
 def predict_single_image(model, image_tensor, device):
     """
-    Predict coordinates for a single image
+    Predict coordinates for a single location (3 images)
     
     Args:
         model: Trained model
-        image_tensor: Image tensor of shape (3, 224, 224)
+        image_tensor: Image tensor of shape (3, 3, 224, 224)
         device: torch.device
     
     Returns:
@@ -95,7 +95,8 @@ def visualize_predictions(model, dataloader, device, num_samples=10, split_name=
     images_data = images_data[:num_samples]
     
     # Create visualization
-    fig, axes = plt.subplots(2, 5, figsize=(20, 8))
+    # Adjust figure size to accommodate wider images (3 views stitched)
+    fig, axes = plt.subplots(2, 5, figsize=(25, 8))
     fig.suptitle(f'{split_name} Set Predictions', fontsize=16, fontweight='bold')
     
     for idx in range(num_samples):
@@ -103,14 +104,20 @@ def visualize_predictions(model, dataloader, device, num_samples=10, split_name=
         col = idx % 5
         ax = axes[row, col]
         
-        # Denormalize image for display
-        img = images_data[idx].permute(1, 2, 0).numpy()
-        mean = np.array([0.485, 0.456, 0.406])
-        std = np.array([0.229, 0.224, 0.225])
-        img = std * img + mean
-        img = np.clip(img, 0, 1)
+        # Denormalize images for display and stitch them
+        views = []
+        for v in range(3):
+            img = images_data[idx][v].permute(1, 2, 0).numpy()
+            mean = np.array([0.485, 0.456, 0.406])
+            std = np.array([0.229, 0.224, 0.225])
+            img = std * img + mean
+            img = np.clip(img, 0, 1)
+            views.append(img)
         
-        ax.imshow(img)
+        # Concatenate views horizontally
+        full_img = np.concatenate(views, axis=1)
+        
+        ax.imshow(full_img)
         ax.axis('off')
         
         # Add prediction info

@@ -42,7 +42,7 @@ class GeoGuesserDataset(Dataset):
         print(f"{split.upper()} set: {len(self.data)} images from {len(set([d['location_id'] for d in self.data]))} locations")
     
     def _load_data(self):
-        """Load all images and their coordinates"""
+        """Load all images and their coordinates, grouped by location"""
         data = []
         
         # Get all annotation files
@@ -59,63 +59,56 @@ class GeoGuesserDataset(Dataset):
                 lat = float(lines[0].strip())
                 lon = float(lines[1].strip())
             
-            # Add all 3 images for this location
+            # Check if all 3 images exist for this location
+            image_paths = []
+            all_images_exist = True
+            
             for angle_idx in range(3):
                 img_name = f"{location_id}_{angle_idx}.png"
                 img_path = os.path.join(self.images_dir, img_name)
                 
-                if os.path.exists(img_path):
-                    data.append({
-                        'image_path': img_path,
-                        'lat': lat,
-                        'lon': lon,
-                        'location_id': location_id,
-                        'angle_idx': angle_idx
-                    })
+                if not os.path.exists(img_path):
+                    all_images_exist = False
+                    break
+                
+                image_paths.append(img_path)
+            
+            # Only add location if all 3 images exist
+            if all_images_exist:
+                data.append({
+                    'image_paths': image_paths,
+                    'lat': lat,
+                    'lon': lon,
+                    'location_id': location_id
+                })
         
         return data
     
     def _split_data(self, train_ratio, val_ratio, seed):
         """
-        Split data by location (not individual images).
-        All 3 images from the same location stay together in the same split.
+        Split data by location.
+        Since self.data is already grouped by location, we just split the list.
         """
-        # Group data by location
-        locations = {}
-        for item in self.data:
-            loc_id = item['location_id']
-            if loc_id not in locations:
-                locations[loc_id] = []
-            locations[loc_id].append(item)
-        
-        # Get sorted list of unique location IDs for reproducibility
-        location_ids = sorted(locations.keys())
-        
         # Shuffle locations with seed
         random.seed(seed)
-        random.shuffle(location_ids)
+        # Create a copy to avoid shuffling the original if called multiple times
+        shuffled_data = self.data.copy()
+        random.shuffle(shuffled_data)
         
         # Calculate split indices
-        num_locations = len(location_ids)
+        num_locations = len(shuffled_data)
         train_end = int(num_locations * train_ratio)
         val_end = train_end + int(num_locations * val_ratio)
         
-        # Split location IDs
+        # Split data
         if self.split == 'train':
-            selected_locations = location_ids[:train_end]
+            return shuffled_data[:train_end]
         elif self.split == 'val':
-            selected_locations = location_ids[train_end:val_end]
+            return shuffled_data[train_end:val_end]
         elif self.split == 'test':
-            selected_locations = location_ids[val_end:]
+            return shuffled_data[val_end:]
         else:
-            raise ValueError(f"Invalid split: {self.split}. Must be 'train', 'val', or 'test'")
-        
-        # Collect all images from selected locations
-        split_data = []
-        for loc_id in selected_locations:
-            split_data.extend(locations[loc_id])
-        
-        return split_data
+            raise ValueError(f"Invalid split: {self.split}")
     
     def __len__(self):
         return len(self.data)
@@ -123,22 +116,30 @@ class GeoGuesserDataset(Dataset):
     def __getitem__(self, idx):
         """
         Returns:
-            image: torch.Tensor of shape (3, H, W)
+            images: torch.Tensor of shape (3, 3, H, W) - (Views, Channels, Height, Width)
             target: torch.Tensor of shape (2,) containing [lat, lon]
         """
         item = self.data[idx]
         
-        # Load image
-        image = Image.open(item['image_path']).convert('RGB')
+        images = []
+        for img_path in item['image_paths']:
+            # Load image
+            image = Image.open(img_path).convert('RGB')
+            
+            # Apply transforms
+            if self.transform:
+                image = self.transform(image)
+            
+            images.append(image)
         
-        # Apply transforms
-        if self.transform:
-            image = self.transform(image)
+        # Stack images along a new dimension
+        # Result shape: (3, 3, H, W)
+        images_stack = torch.stack(images)
         
         # Prepare target (lat, lon)
         target = torch.tensor([item['lat'], item['lon']], dtype=torch.float32)
         
-        return image, target
+        return images_stack, target
 
 
 def get_transforms(split='train', image_size=224):
@@ -259,20 +260,18 @@ if __name__ == "__main__":
     
     # Test data loading
     print("\n[2/3] Testing data loading...")
-    image, target = train_dataset[0]
-    print(f"✓ Image shape: {image.shape}")
+    images, target = train_dataset[0]
+    print(f"✓ Images shape: {images.shape} (should be [3, 3, H, W])")
     print(f"✓ Target shape: {target.shape}")
     print(f"✓ Target (lat, lon): [{target[0]:.4f}, {target[1]:.4f}]")
-    print(f"✓ Image dtype: {image.dtype}")
-    print(f"✓ Target dtype: {target.dtype}")
     
     # Test dataloaders
     print("\n[3/3] Testing dataloaders...")
-    train_loader, val_loader, test_loader = get_dataloaders(batch_size=8, num_workers=0)
+    train_loader, val_loader, test_loader = get_dataloaders(batch_size=4, num_workers=0)
     
     # Get a batch
     images, targets = next(iter(train_loader))
-    print(f"✓ Batch images shape: {images.shape}")
+    print(f"✓ Batch images shape: {images.shape} (should be [B, 3, 3, H, W])")
     print(f"✓ Batch targets shape: {targets.shape}")
     print(f"✓ Batch size: {images.shape[0]}")
     

@@ -26,11 +26,14 @@ class GeoLocalizationModel(nn.Module):
         # Get the number of features from the last layer
         num_features = self.resnet.fc.in_features
         
-        # Replace the final fully connected layer
-        # Original: 2048 -> 1000 (ImageNet classes)
-        # New: 2048 -> 2 (latitude, longitude)
-        self.resnet.fc = nn.Sequential(
-            nn.Linear(num_features, 512),
+        # Remove the final fully connected layer to get raw features
+        self.resnet.fc = nn.Identity()
+        
+        # Multi-view regressor
+        # Input: num_features * 3 (3 views concatenated)
+        # 2048 * 3 = 6144 features
+        self.regressor = nn.Sequential(
+            nn.Linear(num_features * 3, 512),
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.Linear(512, 128),
@@ -44,12 +47,28 @@ class GeoLocalizationModel(nn.Module):
         Forward pass
         
         Args:
-            x: Input images of shape (batch_size, 3, 224, 224)
+            x: Input images of shape (batch_size, 3, 3, 224, 224)
+               Dimensions: (Batch, Views, Channels, Height, Width)
         
         Returns:
             predictions: Tensor of shape (batch_size, 2) with [lat, lon]
         """
-        return self.resnet(x)
+        batch_size, num_views, C, H, W = x.shape
+        
+        # Reshape to (batch_size * num_views, C, H, W) to pass through ResNet
+        x = x.view(batch_size * num_views, C, H, W)
+        
+        # Extract features: (batch_size * num_views, 2048)
+        features = self.resnet(x)
+        
+        # Reshape back to separate views: (batch_size, num_views, 2048)
+        features = features.view(batch_size, num_views, -1)
+        
+        # Flatten views: (batch_size, num_views * 2048) -> (batch_size, 6144)
+        features = features.view(batch_size, -1)
+        
+        # Predict coordinates
+        return self.regressor(features)
 
 
 def haversine_distance(pred_coords, true_coords):
