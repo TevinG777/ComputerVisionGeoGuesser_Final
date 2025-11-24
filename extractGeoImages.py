@@ -10,7 +10,7 @@ import threading
 
 
 mapTempate = "DataSet\KeyImages\mapName.png"
-rounds = 100
+rounds = 1000
 
 def checkMapNameOnScreen(MapLocation = None):
     
