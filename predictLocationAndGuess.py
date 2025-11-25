@@ -220,11 +220,20 @@ def hitNextButton():
 
 
 def wait_for_next_prompt():
-    """Block until the user presses 'n' to move on."""
-    print("Press 'n' for Next (or 'q' to stop)...")
+    """
+    Block until the user chooses an action:
+    - 'n' => proceed to hit Next
+    - 'm' => skip hitting Next (in case you've already advanced)
+    - 'q' => handled by emergencyStop, but we also break defensively
+    """
+    print("Press 'n' for Next, 'm' to skip Next (already clicked), or 'q' to stop...")
     while True:
         if keyboard.is_pressed("n"):
-            return
+            return "next"
+        if keyboard.is_pressed("m"):
+            return "skip"
+        if keyboard.is_pressed("q"):
+            return "quit"
         time.sleep(0.1)
 
 
@@ -251,14 +260,18 @@ def main():
     stop_thread = threading.Thread(target=emergencyStop, daemon=True)
     stop_thread.start()
 
-    print("Press 'r' to start the prediction process...")
-    while True:
-        if keyboard.is_pressed("r"):
-            print("Starting prediction process...")
-            break
-        time.sleep(0.1)
+    
 
     for img_num in range(global_img_num, global_img_num + ROUNDS):
+        
+        print("Press 'r' to start the prediction process...")
+        while True:
+            if keyboard.is_pressed("r"):
+                print("Starting prediction process...")
+                break
+            time.sleep(0.1)
+        
+        
         checkMapNameOnScreen()
 
         view_tensor = capture_views(img_num, transform)
@@ -274,7 +287,15 @@ def main():
 
         wait_for_guess_and_click(lat, lon, img_num, base_map_size)
 
-        wait_for_next_prompt()
+        action = wait_for_next_prompt()
+        if action == "next":
+            hitNextButton()
+        elif action == "skip":
+            print("Skipping Next click for this round.")
+        else:
+            print("Stopping by user request.")
+            break
+
 
 if __name__ == "__main__":
     main()
