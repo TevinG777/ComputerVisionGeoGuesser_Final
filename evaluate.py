@@ -172,6 +172,78 @@ def plot_error_distribution(distances, split_name="Test"):
     plt.close()
 
 
+def plot_accuracy_cdf_and_bars(distances, split_name="Test"):
+    """
+    Plot the 'Gold Standard' CDF of geolocation accuracy and a bar chart for specific radii.
+    
+    1. CDF Plot: X-axis (Distance 0-5000km), Y-axis (Fraction 0-1)
+    2. Bar Chart: Accuracy at specific radius levels (100km, 200km, etc.)
+    """
+    distances = np.array(distances)
+    sorted_distances = np.sort(distances)
+    n = len(sorted_distances)
+    
+    # Calculate CDF
+    # y-axis: 0 to 1
+    y_vals = np.arange(1, n + 1) / n
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 6))
+    
+    # --- Plot 1: CDF (The Gold Standard) ---
+    ax1.plot(sorted_distances, y_vals, linewidth=2.5, color='#1f77b4', label='Accuracy CDF')
+    
+    # Formatting
+    ax1.set_xlim(0, 5000)  # User requested 0 to 5000km
+    ax1.set_ylim(0, 1.02)
+    ax1.set_xlabel('Distance Threshold (km)', fontsize=12)
+    ax1.set_ylabel('Fraction of Images Correctly Located', fontsize=12)
+    ax1.set_title(f'{split_name} Set - Geolocation Accuracy CDF', fontsize=14, fontweight='bold')
+    ax1.grid(True, which='both', linestyle='--', alpha=0.6)
+    
+    # Add markers for key thresholds on the line
+    key_thresholds = [100, 500, 1000, 2500]
+    for thresh in key_thresholds:
+        # Find accuracy at this threshold
+        acc = np.sum(distances <= thresh) / n
+        # Only plot if within view
+        if thresh <= 5000:
+            ax1.plot(thresh, acc, 'o', color='red', zorder=5)
+            ax1.annotate(f'{acc:.1%}', (thresh, acc), xytext=(5, -10), 
+                         textcoords='offset points', fontsize=9, fontweight='bold')
+
+    ax1.legend(loc='lower right')
+
+    # --- Plot 2: Bar Chart at Radii ---
+    radii = [25, 100, 200, 500, 1000, 2500]
+    accuracies = [np.sum(distances <= r) / n for r in radii]
+    
+    # Create bars
+    x_pos = np.arange(len(radii))
+    bars = ax2.bar(x_pos, accuracies, color='#2ca02c', alpha=0.7, edgecolor='black', width=0.6)
+    
+    # Formatting
+    ax2.set_xlabel('Distance Radius (km)', fontsize=12)
+    ax2.set_ylabel('Accuracy (0.0 - 1.0)', fontsize=12)
+    ax2.set_title(f'{split_name} Set - Accuracy at Different Radii', fontsize=14, fontweight='bold')
+    ax2.set_xticks(x_pos)
+    ax2.set_xticklabels([str(r) for r in radii])
+    ax2.set_ylim(0, 1.05)
+    ax2.grid(axis='y', linestyle='--', alpha=0.3)
+    
+    # Add value labels on top of bars
+    for bar in bars:
+        height = bar.get_height()
+        ax2.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                 f'{height:.1%}',
+                 ha='center', va='bottom', fontsize=10, fontweight='bold')
+                 
+    plt.tight_layout()
+    save_path = os.path.join(RESULTS_DIR, f'{split_name.lower()}_accuracy_cdf.png')
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    print(f"✓ Saved accuracy CDF plot to '{save_path}'")
+    plt.close()
+
+
 def plot_coordinate_scatter(model, dataloader, device, split_name="Test"):
     """Plot predicted vs actual coordinates on a map"""
     model.eval()
@@ -290,6 +362,7 @@ def evaluate_all_splits(checkpoint_path='checkpoints/best_model.pth'):
         print(f"\nGenerating visualizations for {split_name} set...")
         visualize_predictions(model, loader, device, num_samples=10, split_name=split_name)
         plot_error_distribution(distances, split_name=split_name)
+        plot_accuracy_cdf_and_bars(distances, split_name=split_name)
         plot_coordinate_scatter(model, loader, device, split_name=split_name)
     
     print("\n" + "=" * 70)
@@ -300,6 +373,7 @@ def evaluate_all_splits(checkpoint_path='checkpoints/best_model.pth'):
         print(f"\n{split_name} Set:")
         print(f"  - {split_name.lower()}_predictions.png")
         print(f"  - {split_name.lower()}_error_distribution.png")
+        print(f"  - {split_name.lower()}_accuracy_cdf.png")
         print(f"  - {split_name.lower()}_coordinate_scatter.png")
     print("\n" + "=" * 70)
 
