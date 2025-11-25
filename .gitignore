@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+
+# PyTorch
+*.pth
+*.pt
+checkpoints/
+test_checkpoints/
+
+# Evaluation results
+evaluation_results/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+coordinate_distribution.png
+training_history.json
+test_results.json
+
+# Data (optional - uncomment if you don't want to track large datasets)
+DataSet/Images/
+DataSet/KeyImages/
+DataSet/Annotations/
