@@ -20,7 +20,7 @@ def load_trained_model(checkpoint_path, device):
     """Load a trained model from checkpoint"""
     model = GeoLocalizationModel(pretrained=False)
     
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
     model.eval()
