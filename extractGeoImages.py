@@ -9,7 +9,7 @@ import pyperclip
 import threading 
 
 
-mapTempate = "DataSet\KeyImages\mapName.png"
+mapTempate = "DataSet\KeyImages\mapName_testing.png"
 rounds = 1000
 
 def checkMapNameOnScreen(MapLocation = None):
