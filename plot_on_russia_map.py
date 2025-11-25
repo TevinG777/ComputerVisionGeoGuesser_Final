@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 # Path to the base map image
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MAP_PATH = os.path.join(BASE_DIR, "assets", "russia_map") 
+MAP_PATH = os.path.join(BASE_DIR, "DataSet/KeyImages", "russia_map.png")
 
 
 # These bounds roughly match the visible Russia area in the map image

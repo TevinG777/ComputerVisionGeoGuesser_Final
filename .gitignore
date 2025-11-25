@@ -52,8 +52,3 @@ Thumbs.db
 coordinate_distribution.png
 training_history.json
 test_results.json
-
-# Data (optional - uncomment if you don't want to track large datasets)
-DataSet/Images/
-DataSet/KeyImages/
-DataSet/Annotations/
