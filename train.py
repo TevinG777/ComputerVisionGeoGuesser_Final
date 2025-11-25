@@ -228,7 +228,7 @@ def main():
     
     # Configuration
     CONFIG = {
-        'batch_size': 32,
+        'batch_size': 16,
         'num_epochs': 50,
         'learning_rate': 1e-4,
         'image_size': 224,

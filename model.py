@@ -104,12 +104,39 @@ def haversine_distance(pred_coords, true_coords):
     return distance
 
 
+class GeodesicMSELoss(nn.Module):
+    """
+    Custom Loss: MSE weighted by Cosine of Latitude.
+    Fixes the 'Russia Problem' where longitude errors are exaggerated in the North.
+    """
+    def __init__(self):
+        super(GeodesicMSELoss, self).__init__()
+        
+    def forward(self, preds, targets):
+        # preds: [batch_size, 2] -> [lat, lon]
+        # targets: [batch_size, 2] -> [lat, lon]
+        
+        lat_pred, lon_pred = preds[:, 0], preds[:, 1]
+        lat_targ, lon_targ = targets[:, 0], targets[:, 1]
+        
+        # Latitude error (standard MSE)
+        lat_loss = (lat_pred - lat_targ) ** 2
+        
+        # Longitude error (weighted by cos(latitude))
+        # We must convert degrees to radians for the Cosine calculation
+        lat_rad = torch.deg2rad(lat_targ)
+        lon_loss = (lon_pred - lon_targ) ** 2 * torch.cos(lat_rad) ** 2
+        
+        return torch.mean(lat_loss + lon_loss)
+
+
 def get_loss_function():
     """
-    Returns MSE loss for coordinate prediction.
-    MSE loss is used as it directly minimizes the error in predicted coordinates.
+    Returns custom Geodesic MSE loss for coordinate prediction.
+    This loss function accounts for latitude when calculating longitude errors,
+    making it more suitable for geographic coordinate regression.
     """
-    return nn.MSELoss()
+    return GeodesicMSELoss()
 
 
 def evaluate_model(model, dataloader, device):
@@ -196,7 +223,7 @@ if __name__ == "__main__":
     dummy_target = torch.tensor([[55.7558, 37.6173], [59.9343, 30.3351], 
                                   [55.0084, 82.9357], [56.8389, 60.6057]])
     loss = criterion(output, dummy_target)
-    print(f"✓ Loss calculated: {loss.item():.4f}")
+    print(f"✓ Geodesic MSE Loss calculated: {loss.item():.4f}")
     print(f"✓ Loss is scalar: {loss.dim() == 0}")
     
     # Test haversine distance
